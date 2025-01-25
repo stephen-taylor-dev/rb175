@@ -10,6 +10,10 @@ configure do
   # set :erb, :escape_html => true
 end
 
+before do
+  session[:user] ||= [username: "admin", password: "secret"]
+end
+
 # cms.rb
 def data_path
   if ENV["RACK_ENV"] == "test"
@@ -59,6 +63,44 @@ post "/:filename/edit" do
   redirect "/"
 end
 
+# View new document page
+get "/document/new" do
+  erb :new_document
+end
+
+# Create a new document
+post "/document/new" do
+  filename = params[:filename].strip
+  file_path = File.join(data_path, filename)
+  error = error_for_filename(file_path, filename)
+  if error
+    status 422
+    session[:message] = error
+    erb :new_document
+  else
+    file_path = File.join(data_path, filename)
+    File.new(file_path, "w")
+    
+    session[:message] = "#{filename} was created."
+    redirect "/"
+  end
+end
+
+post "/:filename/delete" do
+  filename = params[:filename]
+  File.delete(File.join(data_path, filename))
+  session[:message] = "#{filename} was deleted."
+  redirect "/"
+end
+
+def error_for_filename(path, filename)
+  if filename.size < 1
+    "A name is required."
+  elsif !File.extname(path).match(/[.]+\S/)
+    "A file extension is required."
+  end
+end
+
 # Helper method to load a file based on type
 def load_file_content(path)
   content = File.read(path)
@@ -67,7 +109,7 @@ def load_file_content(path)
     headers["Content-Type"] = "text/plain"
     content
   when ".md"
-    render_markdown(content)
+    erb render_markdown(content)
   end
 end
 

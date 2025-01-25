@@ -1,16 +1,7 @@
-<!doctype html>
-<html lang="en-US">
-  <head>
-    <title>File CMS</title>
-    <meta charset="UTF-8">
-  </head>
-  <body>
-    <form action="/<%= @filename %>/edit" method="post">
-        <p><label for="w3review">Edit content of <%= @filename %></label></p>
-        <textarea name="content" id="content" rows="50" cols="75">
-            <%= @content %>
-        </textarea>
-        <button type="submit" >Save Changes</button>
-    </form>
-  </body>
-</html>
+<form action="/<%= @filename %>/edit" method="post">
+  <p><label for="content">Edit content of <%= @filename %></label></p>
+  <textarea name="content" id="content" rows="50" cols="75">
+      <%= @content %>
+  </textarea>
+  <button type="submit" >Save Changes</button>
+</form>

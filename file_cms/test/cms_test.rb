@@ -98,4 +98,64 @@ class CMSTest < Minitest::Test
     assert_equal 200, last_response.status
     assert_includes last_response.body, "User wrote this stuff."
   end
+
+  def test_new_document_page
+    get "/document/new"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, %q(<button type="submit")
+  end
+
+  def test_create_valid_new_document
+    post "/document/new", filename: "new_document.txt"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "new_document.txt was created"
+    assert_includes last_response.body, "new_document.txt"
+  end
+
+  def test_create_invalid_new_document
+    post "/document/new", filename: "       "
+
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "A name is required."
+  end
+
+  def test_delete_file
+    create_document "test.txt", "Test doc 1."
+
+    post "/test.txt/delete"
+
+    assert_equal 302, last_response.status
+
+    get last_response["location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "test.txt was deleted."
+
+    get "/"
+    refute_includes last_response.body, "test.txt"
+  end
+
+  def test_login_page
+    get "/user/login"
+    
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Username"
+    assert_includes last_response.body, "Password"
+    assert_includes last_response.body, %q(<button type="submit")
+
+  end
+
+  def test_successful_login
+    post "/user/login"
+
+    session[:user]
+
+  end
+
 end

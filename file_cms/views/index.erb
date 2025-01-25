@@ -1,22 +1,13 @@
-<!doctype html>
-<html lang="en-US">
-  <head>
-    <title>File CMS</title>
-    <meta charset="UTF-8">
-
-  </head>
-  <body>
-    <% if session[:message] %>
-        <p><%= session.delete(:message)%></p>
-    <% end %>
-    <ul>
-        <% @files.each do |filename| %>
-            <li>
-                <a href="/<%= filename %>"><%= filename %></a>
-                <a href="<%= filename %>/edit">Edit </a>
-            </li>
-        <% end %>
-    </ul>
-    <%= @contents %>
-  </body>
-</html>
+<ul>
+  <% @files.each do |filename| %>
+    <li>
+      <a href="/<%= filename %>"><%= filename %></a>
+      <a href="<%= filename %>/edit">Edit </a>
+      <form class="inline" action="/<%= filename %>/delete" method="post">
+        <button type="submit">Delete</button>
+      </form>
+    </li>
+  <% end %>
+</ul>
+<p><a href="/document/new">New Document</a></p>
+<%= @contents %>
