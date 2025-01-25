@@ -1,0 +1,9 @@
+<h1> <%= @name %> </h1>
+<p>Email: <a href="mailto:<%= @email %>"><%= @email %></a></p>
+<p>Interests: <%= @interests %></p>
+
+<% @user_names.each do |user_name| %>
+    <% next if user_name == @name.downcase %>
+    <a href="/<%= user_name %>"><%= user_name.capitalize %></a>
+<% end %>
+

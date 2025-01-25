@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Directory Index</title>
+
+</head>
+
+<body>
+    <ul>
+        <% @filenames.each do |filename| %>
+            <a href="/<%= filename %>"><li><%= filename %></li></a>
+        <% end %>
+    </ul>
+    <a href="/?sort=ascending">Sort Ascending</a>
+    <a href="/?sort=descending">Sort Descending</a>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Users and Interests</title>
+
+</head>
+
+<body>
+    <%= yield %>
+    <footer>
+        <p>There are <%= @users.size %> users with a total of <%= count_interests %> interests.<br>
+    </footer>
+</body>
+</html>
