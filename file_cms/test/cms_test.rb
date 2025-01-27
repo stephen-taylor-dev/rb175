@@ -185,7 +185,7 @@ class CMSTest < Minitest::Test
     post "/user/login", username: "admin", password: "secret"
     assert_equal 302, last_response.status
     assert_equal "Welcome!", session[:message]
-    assert_equal "admin", session[:user][:username]
+    assert_equal "admin", session[:user]
 
     get last_response["location"]
     assert_equal 200, last_response.status
@@ -202,7 +202,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_successful_logout
-    get "/", {}, {"rack.session" => { user: {username: "admin", password: "password"}} }
+    get "/", {}, {"rack.session" => { user: "admin" } }
     assert_includes last_response.body, "Signed in as admin."
 
     post "/user/logout"

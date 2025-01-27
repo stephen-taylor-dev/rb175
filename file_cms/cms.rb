@@ -3,6 +3,8 @@ require "sinatra/reloader"
 require "sinatra/content_for"
 require "tilt/erubi"
 require "redcarpet"
+require "yaml"
+require "bcrypt"
 
 configure do
   enable :sessions
@@ -19,6 +21,26 @@ def data_path
   end
 end
 
+def load_user_credentials
+  credentials_path = if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/users.yml", __FILE__)
+  else
+    File.expand_path("../users.yml", __FILE__)
+  end
+  YAML.load_file(credentials_path)
+end
+
+def valid_credentials?(username, password)
+  credentials = load_user_credentials
+  if credentials.key?(username)
+    bcrypt_password = BCrypt::Password.new(credentials[username])
+    bcrypt_password == password
+  else
+    false
+  end
+
+end
+
 def authenticate_user(session)
   unless session[:user]
     session[:message] = "You must be signed in to do that."
@@ -28,6 +50,7 @@ end
 
 # Load main page
 get "/" do
+  p request.env
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map do |path|
     File.basename(path)
@@ -37,7 +60,7 @@ end
 
 # Load a file page
 get "/:filename" do
-  file_path = File.join(data_path, params[:filename])
+  file_path = File.join(data_path, File.basename(params[:filename]))
 
   if File.file?(file_path)
     load_file_content(file_path)
@@ -106,10 +129,10 @@ get "/user/login" do
 end
 
 post "/user/login" do
-  username, password = params[:username], params[:password]
-
-  if username == "admin" && password == "secret"
-    session[:user] = { username: username, password: password }
+  username, input_password = params[:username], params[:password]
+  
+  if valid_credentials?(username, input_password)
+    session[:user] = username
     session[:message] = "Welcome!"
     redirect "/"
   else
