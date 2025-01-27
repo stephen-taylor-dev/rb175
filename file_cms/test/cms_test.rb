@@ -27,6 +27,14 @@ class CMSTest < Minitest::Test
     end
   end
 
+  def session
+    last_request.env["rack.session"]
+  end
+
+  def admin_session
+    { "rack.session" => { user: {username: "admin", password: "password" }}}
+  end
+
   def test_index
     create_document "file.txt", "Test doc 1."
     create_document "about.md", "# Test markdown doc."
@@ -44,7 +52,6 @@ class CMSTest < Minitest::Test
     create_document "file.txt", "Test doc 1."
 
     get "/file.txt"
-
     assert_equal 200, last_response.status
     assert_equal "text/plain", last_response["Content-Type"]
     assert_includes(last_response.body, "Test doc 1.")
@@ -62,22 +69,14 @@ class CMSTest < Minitest::Test
     get "/notafile.ext"
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "notafile.ext does not exist"
-
-    get "/" # Reload the page
-    refute_includes last_response.body, "notafile.ext does not exist"
+    assert_equal "notafile.ext does not exist.", session[:message]
   end
 
 
   def test_editing_document
     create_document "changes.txt", "Test doc changes."
 
-    get "/changes.txt/edit"
-
+    get "/changes.txt/edit", {}, admin_session
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
     assert_includes last_response.body, "<textarea"
@@ -85,60 +84,91 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, %q(<button type="submit")
   end
 
-  def test_updating_document
-    post "/changes.txt/edit", content: "User wrote this stuff."
+  def test_editing_document_signed_out
+    create_document "changes.txt"
+
+    get "/changes.txt/edit"
 
     assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
+  def test_updating_document
+    post "/changes.txt/edit", {content: "User wrote this stuff."}, admin_session 
+
+    assert_equal 302, last_response.status
+    assert_equal "changes.txt has been updated.", session[:message]
 
     get last_response["Location"]
-
-    assert_includes last_response.body, "changes.txt has been updated"
-
+    
     get "/changes.txt" # Reload the page
     assert_equal 200, last_response.status
     assert_includes last_response.body, "User wrote this stuff."
   end
 
+  def test_updating_document_signed_out
+    post "/changes.txt/edit", {content: "User wrote this stuff."}
+
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
   def test_new_document_page
-    get "/document/new"
+    get "/document/new", {}, admin_session 
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, %q(<button type="submit")
   end
 
-  def test_create_valid_new_document
-    post "/document/new", filename: "new_document.txt"
+  def test_new_document_page_signed_out
+    get "/document/new"
 
     assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
+  def test_create_valid_new_document
+    post "/document/new", {filename: "new_document.txt"}, admin_session
+
+    assert_equal 302, last_response.status
+    assert_equal "new_document.txt was created.", session[:message]
 
     get last_response["Location"]
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "new_document.txt was created"
     assert_includes last_response.body, "new_document.txt"
   end
 
+  def test_create_valid_new_document_signed_out
+    post "/document/new", {filename: "new_document.txt"}
+
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
   def test_create_invalid_new_document
-    post "/document/new", filename: "       "
+    post "/document/new", {filename: "       " }, admin_session
 
     assert_equal 422, last_response.status
-    assert_includes last_response.body, "A name is required."
+    assert_includes last_response.body, "A name is required"
   end
 
   def test_delete_file
     create_document "test.txt", "Test doc 1."
 
-    post "/test.txt/delete"
-
+    post "/test.txt/delete", {}, admin_session
     assert_equal 302, last_response.status
+    assert_equal "test.txt was deleted.", session[:message]
 
     get last_response["location"]
+    refute_includes last_response.body, %q(href="/test.txt")
+  end
 
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "test.txt was deleted."
+  def test_delete_file_signed_out
+    create_document "test.txt", "Test doc 1."
 
-    get "/"
-    refute_includes last_response.body, "test.txt"
+    post "/test.txt/delete", {}
+
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
   end
 
   def test_login_page
@@ -152,9 +182,36 @@ class CMSTest < Minitest::Test
   end
 
   def test_successful_login
-    post "/user/login"
+    post "/user/login", username: "admin", password: "secret"
+    assert_equal 302, last_response.status
+    assert_equal "Welcome!", session[:message]
+    assert_equal "admin", session[:user][:username]
 
-    session[:user]
+    get last_response["location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Signed in as admin."
+
+  end
+
+  def test_failed_login
+    post "/user/login", username: "notadmin", password: "notsecret"
+
+    assert_equal 422, last_response.status
+    assert_nil session[:user]
+    assert_includes last_response.body, "Invalid credentials."
+  end
+
+  def test_successful_logout
+    get "/", {}, {"rack.session" => { user: {username: "admin", password: "password"}} }
+    assert_includes last_response.body, "Signed in as admin."
+
+    post "/user/logout"
+    assert_equal 302, last_response.status
+    assert_equal "You have been signed out.", session[:message]
+    
+    get last_response["location"]
+    assert_nil session[:user]
+    assert_includes last_response.body, "Sign In"
 
   end
 

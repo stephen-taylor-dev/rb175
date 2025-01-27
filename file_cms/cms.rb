@@ -10,16 +10,19 @@ configure do
   # set :erb, :escape_html => true
 end
 
-before do
-  session[:user] ||= [username: "admin", password: "secret"]
-end
-
 # cms.rb
 def data_path
   if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/data", __FILE__)
   else
     File.expand_path("../data", __FILE__)
+  end
+end
+
+def authenticate_user(session)
+  unless session[:user]
+    session[:message] = "You must be signed in to do that."
+    redirect "/"
   end
 end
 
@@ -46,6 +49,7 @@ end
 
 # Load page to Edit a file page
 get "/:filename/edit" do
+  authenticate_user(session)
   file_path = File.join(data_path, params[:filename])
   @filename = params[:filename]
   @content = File.read(file_path)
@@ -54,6 +58,7 @@ end
 
 # Edit an file
 post "/:filename/edit" do
+  authenticate_user(session)
   content = params[:content]
   file_path = File.join(data_path, params[:filename])
   
@@ -65,11 +70,13 @@ end
 
 # View new document page
 get "/document/new" do
+  authenticate_user(session)
   erb :new_document
 end
 
 # Create a new document
 post "/document/new" do
+  authenticate_user(session)
   filename = params[:filename].strip
   file_path = File.join(data_path, filename)
   error = error_for_filename(file_path, filename)
@@ -87,9 +94,34 @@ post "/document/new" do
 end
 
 post "/:filename/delete" do
+  authenticate_user(session)
   filename = params[:filename]
   File.delete(File.join(data_path, filename))
   session[:message] = "#{filename} was deleted."
+  redirect "/"
+end
+
+get "/user/login" do
+  erb :login
+end
+
+post "/user/login" do
+  username, password = params[:username], params[:password]
+
+  if username == "admin" && password == "secret"
+    session[:user] = { username: username, password: password }
+    session[:message] = "Welcome!"
+    redirect "/"
+  else
+    status 422
+    session[:message] = "Invalid credentials."
+    erb :login
+  end
+end
+
+post "/user/logout" do
+  session.delete(:user)
+  session[:message] = "You have been signed out."
   redirect "/"
 end
 
